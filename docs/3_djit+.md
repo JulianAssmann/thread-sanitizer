@@ -13,9 +13,28 @@ The number of elements in these vectors equals the number of threads, each eleme
 The image represents the initial global state maintained by the DJIT+ algorithm for three threads, two variables and one lock:
 
 ![](./images/djit_initial.png "The initial state of the DJIT+ algorithm")
+### Time frames
 
-The vector clocks are updated according to a set of rules.
+DJIT+ splits the program execution of each thread $t$ in *time frames*. Each time frame starts each time the thread performs a release operation  $rel(t, m)$ on a lock $m$. With this, two updates to the vector clocks happen:
 
+1. The $t$'th element of the vector clock $C_t$ of thread $t$ is incremented: 
+    
+    $C_t[t] \leftarrow C_t[t] + 1$. 
+2. The vector clock $L_m$ is set to the supremum of itself and the vector clock $C_t$ of thread $t$ (each entry of the vector clock $L_m$ of lock $m$ is updated to hold the maximum between the current value and that of $t$'s vector): 
+
+    $L_m \leftarrow sup(L_m, C_t) \Leftrightarrow$
+
+    $\forall i: L_m[i] \leftarrow max(L_m[i], C_t[i])$
+
+**Example** 
+
+Consider a program with two threads and one lock. In the initial state of this example, the vector clocks for the threads are set to $[1, 1]$ and the clock for the lock is set to $[0, 0]$.
+
+Thread $1$ now acquires and subsequently releases lock $1$. According to the first rule, the first element of the vector clock $C_1$ of thread $1$ is incremented to the value $C_1 = [2, 1]$. After that, the vector clock $L_1$ of lock $1$ is set to the supremum of $L_1$ and $C_1$: $L_1 \leftarrow sup(L_1, C_1) = [2, 1]$ A new time frame for tread 1 starts here, indicated by the grey box.
+
+Now, thread $2$ acquires lock $1$. Its vector clock is updated to the union of its own vector clock and that of lock 1. Therefore, its value is set to $[1, 2]$.
+
+![](./images/djit_locking_example_no_race.png "The DJIT+ algorithm at work without a data race")
 ### Locking
 
 **First rule**
@@ -28,15 +47,8 @@ Whenever a thread $t$ releases a lock $m$
 
 Whenever a thread $t$ acquires a lock $m$, the vector clock $C_t$ of the thread is updated to be $C_t' = C_t \cup L_m$, i.e. each element of $C_t'$ is set to the maximum of the corresponding elements of $C_t$ and $L_m$.
 
-**Example** 
 
-Consider a program with two threads and one lock. In the initial state of this example, the vector clocks for thread 1 and lock 1 are set to $[0, 0]$, while the vector clock of thread 2 has a starting value of $C_2 = [0, 2]$.
 
-Thread $1$ now acquires and subsequently releases lock $1$. According to the first rule, the first element of the vector clock $C_1$ of thread $1$ is incremented to the value $C_1 = [1, 0]$. After that, the clock $L_1$ of lock $1$ is set to the clock $C_1$: $L_1 = C_1 = [1, 0]$.
-
-Now, thread $2$ acquires lock $1$. Its vector clock is updated to the union of its own vector clock and that of lock 1. Therefore, its value is set to $[1, 2]$.
-
-![](./images/locking_example.png "The initial state of the DJIT+ algorithm")
 
 ### Variable reads and writes
 
